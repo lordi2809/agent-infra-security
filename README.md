@@ -8,7 +8,8 @@ Every skill in this repo works two ways: as an agent skill you can install and t
 
 | Skill | What it does | Standalone tools |
 |-------|-------------|-----------------|
-| [pypi-supply-chain-response](skills/pypi-supply-chain-response/) | Triage and recover from a compromised Python package on PyPI | `check_compromise_template.sh`, IOC pattern library |
+| [pypi-supply-chain-response](skills/pypi-supply-chain-response/) | Triage and recover from a compromised Python package on PyPI | `check_compromise_template.sh`, IOC pattern library, manual investigation playbook |
+| [supply-chain-security-check](skills/supply-chain-security-check/) | Multi-ecosystem blast radius scan for any compromised dependency | Investigation commands for Python, Node, Go, Rust, Java, Docker |
 
 ## Why this exists
 
@@ -50,13 +51,17 @@ agent-infra-security/
 ├── LICENSE                                      # MIT
 ├── CATALOG.md                                   # Skill index with descriptions
 └── skills/
-    └── pypi-supply-chain-response/              # First skill
+    ├── pypi-supply-chain-response/              # PyPI-specific deep triage
+    │   ├── SKILL.md
+    │   ├── README.md
+    │   ├── references/
+    │   │   ├── ioc-patterns.md
+    │   │   └── manual-investigation-playbook.md
+    │   └── scripts/
+    │       └── check_compromise_template.sh
+    └── supply-chain-security-check/             # Multi-ecosystem blast radius scan
         ├── SKILL.md
-        ├── README.md
-        ├── references/
-        │   └── ioc-patterns.md
-        └── scripts/
-            └── check_compromise_template.sh
+        └── README.md
 ```
 
 ## License

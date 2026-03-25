@@ -104,6 +104,16 @@ cat ~/.pip/pip.log 2>/dev/null | grep <PACKAGE>
 grep -r "<PACKAGE>" ~/.cache/pip/http/ 2>/dev/null | head -20
 ```
 
+After confirming the version, classify the finding into one of these five categories to communicate risk clearly:
+
+- **Not present** — package not found anywhere
+- **Present, safe version** — installed but not a compromised version
+- **Present, likely affected** — compromised version was installed
+- **Present, insufficient evidence** — package found but version or install timing unclear
+- **Confirmed compromise** — compromised version installed AND IOC indicators found
+
+Use this classification in the output for each environment reviewed so the user and their team can quickly understand the severity.
+
 ### Phase 3: IOC hunting — "Did the malware execute?"
 
 If the user confirmed they had a compromised version, look for evidence that the payload ran. Read `references/ioc-patterns.md` for the built-in pattern library. Combine those patterns with any attack-specific IOCs the user provides.
@@ -144,6 +154,16 @@ stat ~/.ssh/id_rsa 2>/dev/null | grep Access
 ```
 
 ### Phase 4: Containment — "Stop the bleeding"
+
+Before removing anything, preserve evidence if your organization may need forensic analysis. Copy or snapshot affected environments, save pip inspect output, screenshot active network connections, and export relevant logs. Once you uninstall packages and purge caches, that evidence is gone.
+
+```
+# Preserve evidence before cleanup
+python -m pip inspect > pip-inspect-evidence-$(date +%Y%m%d-%H%M%S).json
+python -m pip freeze > pip-freeze-evidence-$(date +%Y%m%d-%H%M%S).txt
+ss -tnp > network-connections-$(date +%Y%m%d-%H%M%S).txt 2>/dev/null
+cp -r $(python -c "import site; print(site.getsitepackages()[0])") site-packages-backup-$(date +%Y%m%d-%H%M%S)/ 2>/dev/null
+```
 
 Remove the compromised package and purge caches so it can't be reinstalled from a cached wheel.
 
@@ -215,6 +235,26 @@ EOF
 
 **Crypto wallets:** if wallet files were on the machine, transfer funds to a new wallet immediately.
 
+#### Post-rotation audit
+
+After rotating credentials, check whether the compromised credentials were already used maliciously. Look for:
+
+- Whether the compromised credentials were used from unusual source IPs or regions after the suspected install time
+- Whether they created new tokens, users, or persistence mechanisms
+- Whether they accessed resources they shouldn't have
+- Cloud provider audit logs: AWS CloudTrail, GCP Audit Logs, Azure Activity Log
+
+```
+# AWS — check recent API calls from the old access key
+aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=<OLD_KEY_ID> --max-results 50
+
+# GCP — check recent admin activity
+gcloud logging read "protoPayload.authenticationInfo.principalEmail=<SERVICE_ACCOUNT>" --limit 50
+
+# GitHub — check audit log for token usage
+gh api /orgs/<ORG>/audit-log --method GET -F phrase="actor:<USERNAME>" -F per_page=50
+```
+
 ### Phase 6: Prevention — "Don't get burned again"
 
 These are the structural improvements to prevent the next supply chain attack from having the same impact.
@@ -280,6 +320,44 @@ Generate a bash script called `check_compromise.sh` that:
 Read `scripts/check_compromise_template.sh` for the template. Customize it with the specific package details from the user's context.
 
 Save this using the create_file tool and make it executable.
+
+## Incident report template
+
+When producing the full incident response runbook or interactive checklist, include this template at the end so the user can document their findings.
+
+### Summary
+- Incident:
+- Package:
+- Ecosystem:
+- Known bad versions:
+- Attack window:
+- Systems reviewed:
+- Result:
+
+### Findings by system
+- System name:
+- Source reference found:
+- Installed version:
+- Direct or transitive:
+- Indicator found:
+- Risk level:
+- Evidence:
+
+### Secret exposure
+- Secrets likely present:
+- Secrets rotated:
+- Audit logs checked:
+
+### Actions taken
+- Isolated:
+- Rebuilt:
+- Blocked versions:
+- Monitoring added:
+
+### Unknowns
+- Missing logs:
+- Deleted environments:
+- Confidence level:
 
 ## Important notes
 
