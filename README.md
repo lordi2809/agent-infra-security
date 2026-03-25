@@ -2,6 +2,8 @@
 
 Security skills for AI coding agents. Detect compromised packages, triage supply chain attacks, rotate credentials, and hunt for IOCs — using Claude Code, Codex, Cursor, or standalone scripts.
 
+![demo](assets/demo.gif)
+
 ## The problem
 
 **You installed a package. It got backdoored. Now what?**
