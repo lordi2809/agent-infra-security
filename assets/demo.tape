@@ -10,51 +10,48 @@ Set Theme "Catppuccin Mocha"
 Set Padding 20
 Set TypingSpeed 40ms
 
-# Scene 1: Install the plugin
+# Scene 1: Install with npx skills
 Type "# Install the security skills"
 Enter
 Sleep 500ms
 
-Type '/plugin marketplace add makash/agent-infra-security'
+Type "npx skills add makash/agent-infra-security"
 Enter
 Sleep 2s
 
-Type '/plugin install supply-chain-skills@agent-infra-security'
-Enter
-Sleep 2s
-
-# Scene 2: Use it
-Type ""
-Enter
-Sleep 500ms
-Type "# Now just ask about any incident"
-Enter
-Sleep 500ms
-
-Type 'litellm got backdoored — versions 1.82.7 and 1.82.8. Am I affected?'
-Enter
-Sleep 3s
-
-# Scene 3: Show it working
+# Scene 2: Show what you get
 Type ""
 Enter
 Sleep 300ms
-Type "# The skill checks transitive deps, hunts for IOCs,"
+Type "# Two skills installed:"
 Enter
-Type "# rotates credentials, and generates a full runbook."
+Type "#   pypi-supply-chain-response    — deep PyPI triage"
+Enter
+Type "#   supply-chain-security-check   — multi-ecosystem scan"
 Enter
 Sleep 2s
 
-# Scene 4: Manual fallback
+# Scene 3: Show the manual check
 Type ""
 Enter
 Sleep 300ms
-Type "# Or skip the agent — just run the script:"
+Type "# Or skip the agent. Check right now:"
 Enter
 Sleep 500ms
 
-Type './scripts/check_compromise_template.sh litellm --dry-run'
+Type "pip show litellm | grep -E '^(Name|Version|Location)'"
 Enter
-Sleep 3s
+Sleep 1500ms
+
+Type "pipdeptree -r -p litellm"
+Enter
+Sleep 1500ms
+
+Type "# Find malicious .pth startup hooks"
+Enter
+Sleep 300ms
+Type 'find "$(python -c "import site; print(site.getsitepackages()[0])")" -name "*.pth" -exec grep -l "base64\|exec\|eval" {} \;'
+Enter
+Sleep 2s
 
 Sleep 2s

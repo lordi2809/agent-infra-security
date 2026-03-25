@@ -102,7 +102,15 @@ find "$SITE" -name "*.pth" -exec grep -l "base64\|subprocess\|exec\|eval\|compil
 pip cache list <PACKAGE>
 ```
 
-For the full manual playbook covering **Windows, macOS, and Linux**, see [`manual-investigation-playbook.md`](skills/pypi-supply-chain-response/references/manual-investigation-playbook.md).
+**Platform coverage:**
+
+| Platform | Quick checks above | Full manual playbook | Automated shell script |
+|----------|-------------------|---------------------|----------------------|
+| Linux | Yes | Yes (bash) | Yes |
+| macOS | Yes | Yes (bash) | Yes |
+| Windows | No | Yes (PowerShell) | No |
+
+For the full manual playbook covering **Windows (PowerShell), macOS, and Linux**, see [`manual-investigation-playbook.md`](skills/pypi-supply-chain-response/references/manual-investigation-playbook.md).
 
 ## Repo structure
 
