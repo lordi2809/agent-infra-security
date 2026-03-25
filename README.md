@@ -29,19 +29,33 @@ Trigger phrases are listed in each skill's `SKILL.md` frontmatter. For example, 
 
 Every skill ships scripts and references that work without any agent. Check each skill's README for usage. Shell scripts include `--dry-run` flags and confirmation prompts before destructive actions.
 
+## Quick manual check (no agent needed)
+
+If a package just got reported as compromised and you need to check right now:
+
+```bash
+# Is it installed? What version?
+pip show <PACKAGE> | grep -E "^(Name|Version|Location)"
+
+# What pulled it in? (transitive dependency check — the step most people miss)
+pip install pipdeptree && pipdeptree -r -p <PACKAGE>
+
+# Is it hiding in other environments on this machine?
+find / -path "*/site-packages/<PACKAGE>" -type d 2>/dev/null
+
+# Any malicious .pth startup hooks? (fires on every Python invocation, not just import)
+SITE=$(python -c "import site; print(site.getsitepackages()[0])")
+find "$SITE" -name "*.pth" -exec grep -l "base64\|subprocess\|exec\|eval\|compile" {} \;
+
+# Cached wheels that could reinstall the bad version?
+pip cache list <PACKAGE>
+```
+
+For the full investigation playbook (Windows/macOS/Linux), see [`manual-investigation-playbook.md`](skills/pypi-supply-chain-response/references/manual-investigation-playbook.md).
+
 ## Contributing
 
-New skills are currently curated by the maintainer. If you have a playbook idea or have been through an incident worth encoding, open an issue to discuss before building. The structure for a new skill:
-
-```
-skills/<skill-name>/
-├── SKILL.md              # Required. Claude instructions + YAML frontmatter.
-├── README.md             # Required. Standalone usage docs.
-├── references/           # Optional. IOC libraries, pattern files, reference docs.
-└── scripts/              # Optional. Standalone scripts that work without Claude.
-```
-
-The `SKILL.md` frontmatter needs a `name` and `description`. The description controls when Claude triggers the skill, so make it specific about the contexts where the skill is useful.
+New skills are curated by the maintainer. If you have a playbook idea, [open an issue](../../issues) to discuss.
 
 ## Repo structure
 
