@@ -1,8 +1,8 @@
 # agent-infra-security
 
-Claude skills and standalone tools for securing AI agent infrastructure.
+Security skills for AI coding agents — detect compromised PyPI packages, triage supply chain attacks, hunt for IOCs, and automate credential rotation. Each skill works as an installable agent skill (Claude Code, Codex, Cursor) or as standalone scripts and runbooks you can use without any agent.
 
-Every skill in this repo works two ways: as a Claude skill you can install and trigger conversationally, and as a standalone resource (scripts, runbooks, IOC libraries) you can use without Claude at all.
+Every skill in this repo works two ways: as an agent skill you can install and trigger conversationally, and as a standalone resource (shell scripts, runbooks, IOC pattern libraries) you can use directly.
 
 ## Skills
 
@@ -18,19 +18,19 @@ This repo collects the response playbooks, detection scripts, and Claude skills 
 
 ## Using the skills
 
-### As Claude skills
+### As agent skills (Claude Code, Codex, Cursor)
 
-Each skill directory contains a `SKILL.md` that Claude reads when triggered. Point your skill path at the specific skill directory, or install a packaged `.skill` bundle from [Releases](../../releases).
+Each skill directory contains a `SKILL.md` with agent instructions and YAML frontmatter. For Claude Code, point your skill path at the specific skill directory. For other agents, use the skill's `README.md` and standalone tools directly.
 
 Trigger phrases are listed in each skill's `SKILL.md` frontmatter. For example, `pypi-supply-chain-response` triggers on anything from "litellm got compromised" to "how do I check if my pip dependencies are backdoored."
 
 ### As standalone tools
 
-Every skill ships scripts and references that work without Claude. Check each skill's README for usage. Shell scripts include `--dry-run` flags and confirmation prompts before destructive actions.
+Every skill ships scripts and references that work without any agent. Check each skill's README for usage. Shell scripts include `--dry-run` flags and confirmation prompts before destructive actions.
 
 ## Contributing
 
-If you've been through an incident and have a playbook worth encoding, open a PR. The structure for a new skill:
+New skills are currently curated by the maintainer. If you have a playbook idea or have been through an incident worth encoding, open an issue to discuss before building. The structure for a new skill:
 
 ```
 skills/<skill-name>/
