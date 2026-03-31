@@ -1,281 +1,192 @@
 ---
 name: supply-chain-security-check
-description: Investigate whether a project, environment, container, or CI pipeline is affected by a dependency supply chain incident. Find direct and transitive usage, check compromised versions and indicators of compromise, and recommend containment and remediation actions.
+description: Investigate whether a project, environment, container, or CI pipeline is affected by a dependency supply chain incident across any ecosystem. Use this skill when the user mentions a compromised package and the ecosystem is NOT npm/Node.js, NOT Python/PyPI, and NOT GitHub Actions — those have dedicated skills (npm-supply-chain-response, pypi-supply-chain-response, github-actions-supply-chain-response). Use this skill for Go, Rust, Ruby, Java/Maven, .NET/NuGet, Docker, or when the ecosystem is unknown or spans multiple ecosystems. Also use when the user asks a general "am I affected?" question without specifying an ecosystem.
 license: MIT
-compatibility: Requires Bash and Python 3. Optional: pip, pipdeptree, docker, kubectl, jq, rg.
+compatibility: Requires Bash. Optional per ecosystem — see command reference table.
 ---
 
 # Supply Chain Security Check
 
-## Purpose
-Investigate whether a project, build, image, host, or CI environment is affected by a newly disclosed package supply chain incident, identify blast radius, and produce exact remediation actions.
+Generic incident response for supply chain compromises across any package ecosystem.
+
+**Routing note:** If the compromised package is from npm/Node.js, Python/PyPI, or GitHub Actions, use the dedicated ecosystem skill instead — they have deeper IOC libraries, ecosystem-specific forensics, and tailored detection commands. This skill covers Go, Rust, Ruby, Java, .NET, Docker, multi-ecosystem incidents, and any ecosystem without a dedicated skill.
 
 ## When to use
-Use this skill when:
-- a package on PyPI, npm, crates.io, RubyGems, Maven, NuGet, Go modules, or Docker Hub is reported compromised
-- a transitive dependency may have pulled in a bad version
-- you need a fast answer on "do we use this anywhere?"
-- you need a clean incident note for engineering or security
-- you need to identify what to rotate, rebuild, or block
+
+- A package on crates.io, RubyGems, Maven Central, NuGet, Go modules, Docker Hub, or any other registry is reported compromised
+- A transitive dependency may have pulled in a bad version
+- You need a fast answer on "do we use this anywhere?"
+- The incident spans multiple ecosystems (e.g., a compromised CI action that published malicious packages to both npm and PyPI)
+- The ecosystem is unknown and you need to identify it first
+- You need a clean incident note for engineering or security
 
 ## Inputs
-- Package name
-- Ecosystem: python, node, go, rust, java, docker, etc.
-- Known bad versions
-- Known safe version or mitigation if available
-- Indicators of compromise
-- Repos, folders, images, or runners to inspect
-- Optional: build logs, lockfiles, SBOMs, image digests, CI logs
 
-## Required outputs
-1. Executive summary
-2. Where the package appears
-3. Whether usage is direct or transitive
-4. Exact affected versions found
-5. Systems likely exposed
-6. Immediate containment actions
-7. Credential rotation scope
-8. Cleanup and rebuild actions
-9. Gaps and unknowns
-10. Copy-paste commands used
+Collect from the user before starting. Don't re-ask for information already provided.
+
+**Required:**
+- Package name
+- Ecosystem (python, node, go, rust, ruby, java, dotnet, docker — or "unknown")
+- Known bad versions
+
+**Helpful but not required:**
+- Known safe version or mitigation
+- Attack window (UTC)
+- Indicators of compromise (C2 domains, persistence paths, process names)
+- Repos, folders, images, or runners to inspect
+- Build logs, lockfiles, SBOMs, image digests, CI logs
 
 ## Workflow
 
-### 1. Confirm incident facts
+### Phase 1: Confirm incident facts
+
 Collect:
-- bad versions
-- install time window if known
-- package manager and registry affected
-- official guidance
-- indicators of compromise
-- whether pinned containers, vendored dependencies, or source installs were unaffected
+- Bad versions and attack window
+- Package manager and registry affected
+- Official advisory or source
+- Indicators of compromise
+- Whether pinned containers, vendored dependencies, or source installs were unaffected
 
-### 2. Find direct references in source
-Search for:
-- requirements.txt
-- requirements-*.txt
-- pyproject.toml
-- poetry.lock
-- uv.lock
-- Pipfile.lock
-- setup.py
-- setup.cfg
-- package-lock.json
-- pnpm-lock.yaml
-- yarn.lock
-- go.mod
-- go.sum
-- Cargo.toml
-- Cargo.lock
-- pom.xml
-- build.gradle
-- Dockerfile
-- CI workflows
-- install scripts
-- bootstrap scripts
-- docs or examples with install commands
+### Phase 2: Find direct references in source
 
-### 3. Find transitive use in built environments
+Search lockfiles and dependency manifests using the ecosystem-appropriate files:
+
+| Ecosystem | Manifest files | Lockfiles |
+|-----------|---------------|-----------|
+| Go | `go.mod` | `go.sum` |
+| Rust | `Cargo.toml` | `Cargo.lock` |
+| Ruby | `Gemfile` | `Gemfile.lock` |
+| Java | `pom.xml`, `build.gradle`, `build.gradle.kts` | — |
+| .NET | `*.csproj`, `*.fsproj`, `packages.config` | `packages.lock.json` |
+| Docker | `Dockerfile`, `docker-compose.yml` | — |
+| Python | `requirements*.txt`, `pyproject.toml`, `Pipfile` | `poetry.lock`, `uv.lock`, `Pipfile.lock` |
+| Node | `package.json` | `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml` |
+
+Also search:
+- CI workflows (`.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`)
+- Install scripts, bootstrap scripts
+- Docs or examples with install commands
+
+```bash
+# Generic search across all file types
+rg -n "<PACKAGE>" .
+find . -name "*.lock" -o -name "*.toml" -o -name "*.mod" -o -name "Gemfile*" -o -name "pom.xml" -o -name "*.gradle" -o -name "*.csproj" | xargs grep -l "<PACKAGE>" 2>/dev/null
+```
+
+### Phase 3: Find transitive use in built environments
+
 Check the actual installed environment, not just source files.
 
-For Python environments check:
-- pip list
-- pip inspect
-- pip show
-- pip freeze
-- pipdeptree
-- site-packages contents
-- cached wheels
-- container layers
-- CI job logs
+| Ecosystem | Check installed version | Show dependency tree |
+|-----------|----------------------|---------------------|
+| Go | `go list -m <PACKAGE>` | `go mod graph \| grep <PACKAGE>` |
+| Rust | `cargo tree -p <PACKAGE>` | `cargo tree -i <PACKAGE>` |
+| Ruby | `bundle show <PACKAGE>` | `bundle exec gem dependency <PACKAGE> --reverse-dependencies` |
+| Java (Maven) | `mvn dependency:tree \| grep <PACKAGE>` | `mvn dependency:tree` |
+| Java (Gradle) | `gradle dependencies \| grep <PACKAGE>` | `gradle dependencies` |
+| .NET | `dotnet list package` | `dotnet list package --include-transitive` |
+| Docker | `docker run --rm <IMAGE> <pkg_cmd>` | Inspect image layers: `docker history <IMAGE>` |
+| Python | `pip show <PACKAGE>` | `pipdeptree -r -p <PACKAGE>` |
+| Node | `npm ls <PACKAGE>` | `npm ls <PACKAGE>` / `yarn why <PACKAGE>` |
 
 Determine:
-- whether the package was installed
-- which top-level package pulled it in
-- whether the resolved version matches a known bad version
-- whether install timing overlaps the incident window
+- Whether the package was installed
+- Which top-level package pulled it in (transitive exposure)
+- Whether the resolved version matches a known bad version
+- Whether install timing overlaps the incident window
 
-### 4. Hunt for indicators of compromise
+### Phase 4: Hunt for indicators of compromise
+
 Look for:
-- suspicious files in site-packages
-- suspicious domains or outbound connections
-- unusual subprocess creation
-- secrets access patterns
-- startup hooks such as `.pth` files
-- package versions installed during the incident window
+- Suspicious files in package install directories
+- Outbound connections to unknown domains
+- Unusual subprocess creation or process spawning
+- Secrets access patterns (recent access times on credential files)
+- Ecosystem-specific hooks (Python `.pth` files, npm `postinstall`, Ruby `extconf.rb`)
+- Package versions installed during the incident window
 
-### 5. Classify impact
+**Credential access evidence:**
+```bash
+find ~/.ssh ~/.aws ~/.config/gcloud ~/.kube -atime -1 2>/dev/null
+stat ~/.ssh/id_rsa 2>/dev/null | grep Access
+```
+
+**Process inspection:**
+```bash
+ps aux | grep -v grep | grep -iE "<SUSPICIOUS_PATTERN>"
+```
+
+**Network indicators:**
+```bash
+ss -tnp 2>/dev/null | grep -i "<C2_DOMAIN>"
+grep -rF "<C2_DOMAIN>" /var/log/ 2>/dev/null
+```
+
+**Persistence checks:**
+```bash
+# systemd user services
+find ~/.config/systemd/user/ -name "*.service" -mtime -7 2>/dev/null
+# Cron jobs
+crontab -l 2>/dev/null
+# Scripts in config directories
+find ~/.config -name "*.py" -o -name "*.sh" -o -name "*.rb" | xargs ls -lt 2>/dev/null | head -20
+```
+
+**Kubernetes (if applicable):**
+```bash
+kubectl get pods -n kube-system --sort-by=.metadata.creationTimestamp
+kubectl get pods --all-namespaces -o json | jq '.items[] | select(.spec.containers[].securityContext.privileged == true) | .metadata.name'
+kubectl get secrets --all-namespaces --sort-by=.metadata.creationTimestamp | tail -20
+```
+
+### Phase 5: Classify impact
+
 Classify each finding as:
-- Not present
-- Present but safe version
-- Present and likely affected
-- Present but insufficient evidence
-- Confirmed compromise
+- **Not present** — package not found anywhere
+- **Present, safe version** — installed but not a compromised version
+- **Present, likely affected** — compromised version was installed
+- **Present, insufficient evidence** — package found but version or install timing unclear
+- **Confirmed compromise** — compromised version installed AND IOC indicators found
 
-### 6. Recommend actions
+### Phase 6: Recommend actions
+
 If affected:
-- isolate host, runner, or container
-- revoke and rotate secrets (see detailed checklist below)
-- remove malicious artifacts
-- rebuild from known-good base
-- pin or block bad versions
-- audit transitive constraints
-- review CI/CD and dependency caches
-- add registry and dependency monitoring
+- Isolate host, runner, or container
+- Remove malicious artifacts
+- Rebuild from known-good base
+- Pin or block bad versions
+- Audit transitive constraints
+- Review CI/CD and dependency caches
+- Add registry and dependency monitoring
 
-#### Credential rotation per-class checklist
-
-**SSH keys:**
+**Credential rotation:** Hand off to the `credential-exfiltration-response` skill for systematic rotation. Scope what credentials were accessible on the compromised system first:
 ```bash
-ls -la ~/.ssh/
-```
-Regenerate each key pair and update `authorized_keys` on all remote hosts.
+# List credential files present
+ls ~/.ssh/id_* ~/.aws/credentials ~/.config/gcloud/application_default_credentials.json ~/.kube/config ~/.npmrc ~/.pypirc ~/.docker/config.json 2>/dev/null
 
-**AWS:**
-```bash
-aws iam list-access-keys --user-name $(aws iam get-user --query User.UserName --output text)
-```
-Create new access keys, delete the compromised ones, and invalidate any active sessions.
-
-**GCP:**
-```bash
-gcloud auth revoke --all
-gcloud auth application-default revoke
-```
-Regenerate service account keys via the console or `gcloud iam service-accounts keys create`.
-
-**Azure:**
-```bash
-az account clear
-```
-Rotate credentials via the Azure portal; regenerate any service principal secrets.
-
-**Kubernetes:**
-```bash
-kubectl config delete-context <CONTEXT>
-```
-Re-authenticate to each cluster and rotate service account tokens.
-
-**.env files — identify all secrets to rotate:**
-```bash
+# Find .env secrets to rotate
 find . -name ".env*" -exec grep -h "KEY\|SECRET\|TOKEN\|PASSWORD\|CREDENTIAL" {} \; | cut -d= -f1 | sort -u
 ```
 
-**Git credentials:**
-Use `git credential reject` to clear cached credentials and re-authenticate. Rotate any personal access tokens (PATs).
+Tell the credential skill which types were accessible, the attack window, and whether IOCs suggest active credential use.
 
-**Database passwords:**
-Rotate any passwords found in `.env` files or connection strings. Update application configuration after rotation.
+### Phase 7: Prevention
 
-**CI/CD secrets:**
-Rotate secrets stored in GitHub Actions (repository and organization secrets), GitLab CI variables, and any other CI/CD platforms in use.
+**Pin exact versions** in dependency files — never use range specifiers for critical dependencies.
 
-**Crypto wallets:**
-If wallet private keys or seed phrases were accessible on the compromised host, transfer funds to new wallets immediately.
+| Ecosystem | Pin syntax | Lockfile with hashes |
+|-----------|-----------|---------------------|
+| Go | `go get <PACKAGE>@v1.2.3` | `go.sum` (automatic) |
+| Rust | `<PACKAGE> = "=1.2.3"` in Cargo.toml | `Cargo.lock` (automatic) |
+| Ruby | `gem '<PACKAGE>', '1.2.3'` | `Gemfile.lock` (automatic) |
+| Java | `<version>1.2.3</version>` (no ranges) | — |
+| .NET | `Version="1.2.3"` (no wildcards) | `packages.lock.json` |
+| Python | `<PACKAGE>==1.2.3` | `pip-compile --generate-hashes` |
+| Node | `npm install --save-exact` | `npm ci` (lockfile-only) |
 
-### 7. Prevention
-- Pin exact versions in dependency files (`==` not `>=` or `~=`)
-- Generate SBOMs for visibility into your dependency tree:
-  ```bash
-  pip install cyclonedx-bom && cyclonedx-py requirements -i requirements.txt -o sbom.json
-  ```
-- Run pip-audit in CI to catch known vulnerabilities:
-  ```bash
-  pip install pip-audit && pip-audit
-  ```
-- For uv users, restrict install time to avoid pulling newly-compromised versions:
-  ```bash
-  uv pip install --exclude-newer "2026-03-23T00:00:00Z" <PACKAGE>
-  ```
-- Scope CI secrets to individual steps, not workflow-level env vars
-- Use Trusted Publishing (OIDC) for your own packages on PyPI
-- Use lockfiles with hashes to prevent silent substitution:
-  ```bash
-  pip-compile --generate-hashes
-  # or
-  uv pip compile --generate-hashes
-  ```
+**Generate an SBOM** so you can answer "am I affected?" in seconds next time.
 
-## Default investigation commands
-
-### Python source search
-```bash
-rg -n "litellm" .
-rg -n "pip install .*litellm|google-adk|browser-use" .
-find . -iname "requirements*.txt" -o -iname "pyproject.toml" -o -iname "*lock*"
-```
-
-### Python environment inspection
-```bash
-python -m pip list --format=json
-python -m pip inspect > pip-inspect.json
-python -m pip show litellm
-python -m pip freeze | grep -i litellm
-pipdeptree | grep -i -A 5 -B 5 litellm
-```
-
-### Artifact and indicator checks
-```bash
-python - <<'PY'
-import os
-import site
-
-for p in site.getsitepackages():
-    for root, _, files in os.walk(p):
-        for f in files:
-            if f == "litellm_init.pth":
-                print(os.path.join(root, f))
-PY
-
-find / -name "litellm_init.pth" 2>/dev/null
-grep -R "models.litellm.cloud" /var/log /tmp "$HOME" 2>/dev/null
-```
-
-#### Generic .pth code execution detection
-Legitimate `.pth` files (e.g. `distutils-precedence.pth`, `easy-install.pth`) contain simple path entries, not code execution patterns. Any `.pth` file importing dangerous modules or calling exec-like functions is suspicious.
-```bash
-SITE=$(python -c "import site; print(site.getsitepackages()[0])")
-find "$SITE" -name "*.pth" -exec grep -l "base64\|subprocess\|exec\|eval\|compile\|import os\|import sys" {} \;
-```
-
-#### Persistence mechanism checks
-Check for persistence mechanisms that a supply chain payload may have installed:
-```bash
-# systemd user services created or modified in the last 7 days
-find ~/.config/systemd/user/ -name "*.service" -mtime -7 2>/dev/null
-
-# Cron jobs
-crontab -l 2>/dev/null
-ls -la /etc/cron.d/ /etc/cron.daily/ /etc/cron.hourly/ 2>/dev/null
-
-# Python scripts dropped in config directories
-find ~/.config -name "*.py" -mtime -7 2>/dev/null
-
-# XDG autostart entries
-find ~/.config/autostart -name "*.desktop" -mtime -7 2>/dev/null
-```
-
-#### Kubernetes lateral movement checks
-Sophisticated payloads may use in-cluster service account tokens to deploy privileged pods across all nodes.
-```bash
-# Check for unexpected pods in kube-system, sorted by creation time
-kubectl get pods -n kube-system --sort-by=.metadata.creationTimestamp
-
-# Look for privileged pods across all namespaces
-kubectl get pods --all-namespaces -o json | jq '.items[] | select(.spec.containers[].securityContext.privileged == true) | .metadata.name'
-
-# Recently created secrets
-kubectl get secrets --all-namespaces --sort-by=.metadata.creationTimestamp | tail -20
-
-# Audit RBAC for unexpected bindings created after the attack date
-kubectl get clusterrolebindings -o json | jq '.items[] | select(.metadata.creationTimestamp > "<ATTACK_DATE>") | .metadata.name'
-```
-
-### Docker and CI
-```bash
-docker history <image>
-docker run --rm <image> python -m pip freeze
-```
+**Scope secrets in CI/CD** — pass secrets only to the specific step that needs them.
 
 ## Output template
 
@@ -284,17 +195,25 @@ State whether the project, image, runner, or host appears affected.
 
 ### Findings
 For each repo, environment, image, or host:
-- package present or absent
-- direct or transitive
-- resolved version
-- evidence
-- risk level
+- Package present or absent
+- Direct or transitive
+- Resolved version
+- Evidence
+- Risk level
 
 ### Immediate actions
-- containment
-- secret rotation scope
-- rebuild scope
-- pinning or blocking recommendation
+- Containment
+- Credential rotation scope (hand off to `credential-exfiltration-response`)
+- Rebuild scope
+- Pinning or blocking recommendation
 
 ### Unknowns
 List what still cannot be proven from available evidence.
+
+## Important notes
+
+- Never tell the user they're "definitely safe" — supply chain attacks can have delayed or stealthy payloads. Use language like "no indicators found in the checks we ran."
+- Transitive dependency exposure is the most common way developers are affected. Most people don't realize a compromised package was pulled in by something they explicitly installed.
+- If the ecosystem is npm, Python/PyPI, or GitHub Actions, redirect to the dedicated skill — they have deeper IOC libraries and ecosystem-specific forensics that this generic skill cannot match.
+- Credential rotation is non-negotiable if the compromised version was installed. Use the `credential-exfiltration-response` skill for the full detect/rotate/verify lifecycle.
+- For multi-ecosystem incidents (e.g., a compromised CI action that published malicious packages to multiple registries), run this skill once per ecosystem and coordinate credential rotation across all of them.
