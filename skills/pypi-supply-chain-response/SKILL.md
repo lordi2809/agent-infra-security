@@ -187,75 +187,24 @@ For Docker: rebuild images from a clean base, pinning the safe version. Don't ju
 
 ### Phase 5: Credential rotation — "Assume everything on that box is burned"
 
-This is the phase developers skip because it's painful. Be explicit and systematic. The skill should walk through each credential class, not just say "rotate everything."
+**Hand off to the `credential-exfiltration-response` skill for systematic rotation.**
 
-**SSH keys:**
-```
-ls -la ~/.ssh/
-# Regenerate each key pair, update authorized_keys on remote hosts
-```
+Before handing off, scope what was accessible on the compromised system so the credential skill knows what to rotate:
 
-**Cloud provider credentials:**
-```
-# AWS — list and rotate access keys
-aws iam list-access-keys --user-name $(aws iam get-user --query User.UserName --output text)
-# Then create new keys and delete old ones
-
-# GCP — revoke application default credentials
-gcloud auth revoke --all
-gcloud auth application-default revoke
-# Regenerate service account keys via console
-
-# Azure
-az account clear
-# Rotate via Azure portal
-```
-
-**Kubernetes:**
-```
-# Regenerate kubeconfig
-kubectl config delete-context <CONTEXT>
-# Re-authenticate via your provider
-```
-
-**Environment variables and .env files:**
 ```
 # Find all .env files and list the keys (not values) that need rotation
 find . -name ".env*" -exec grep -h "KEY\|SECRET\|TOKEN\|PASSWORD\|CREDENTIAL" {} \; | cut -d= -f1 | sort -u
-```
-Then rotate each key at the respective provider's dashboard.
 
-**Git credentials:**
-```
-git credential reject <<EOF
-protocol=https
-host=github.com
-EOF
+# List credential files present
+ls ~/.ssh/id_* ~/.aws/credentials ~/.config/gcloud/application_default_credentials.json ~/.kube/config ~/.npmrc ~/.pypirc ~/.docker/config.json 2>/dev/null
 ```
 
-**Database passwords:** identify from .env files and connection strings, then rotate at the database level.
+Tell the `credential-exfiltration-response` skill:
+- Which credential types were accessible (SSH keys, cloud credentials, API tokens, .env secrets, etc.)
+- The attack window (when the compromised package was installed)
+- Whether any IOCs from Phase 3 suggest active credential use
 
-**Crypto wallets:** if wallet files were on the machine, transfer funds to a new wallet immediately.
-
-#### Post-rotation audit
-
-After rotating credentials, check whether the compromised credentials were already used maliciously. Look for:
-
-- Whether the compromised credentials were used from unusual source IPs or regions after the suspected install time
-- Whether they created new tokens, users, or persistence mechanisms
-- Whether they accessed resources they shouldn't have
-- Cloud provider audit logs: AWS CloudTrail, GCP Audit Logs, Azure Activity Log
-
-```
-# AWS — check recent API calls from the old access key
-aws cloudtrail lookup-events --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=<OLD_KEY_ID> --max-results 50
-
-# GCP — check recent admin activity
-gcloud logging read "protoPayload.authenticationInfo.principalEmail=<SERVICE_ACCOUNT>" --limit 50
-
-# GitHub — check audit log for token usage
-gh api /orgs/<ORG>/audit-log --method GET -F phrase="actor:<USERNAME>" -F per_page=50
-```
+The credential skill will walk through detection of abuse, rotation for each credential class, and verification that old credentials are truly invalidated (including provider-specific delays like AWS STS sessions surviving key deletion for up to 36 hours).
 
 ### Phase 6: Prevention — "Don't get burned again"
 
@@ -366,5 +315,5 @@ When producing the full incident response runbook or interactive checklist, incl
 - Never tell the user they're "definitely safe" — supply chain attacks can have delayed or stealthy payloads. Use language like "no indicators found in the checks we ran" and suggest they monitor for advisories.
 - The .pth attack vector is particularly dangerous because it fires on every Python interpreter startup, not just when the package is imported. Emphasize this when relevant.
 - Transitive dependency exposure is the most common way developers are affected. Most people don't install packages like litellm directly — they get it through CrewAI, DSPy, Browser-Use, etc. The `pipdeptree -r` step is often the most important single command in the entire playbook.
-- Credential rotation is non-negotiable if the compromised version was installed. The attacker had access to everything on that machine. Don't let the user skip this phase.
+- Credential rotation is non-negotiable if the compromised version was installed. The attacker had access to everything on that machine. Don't let the user skip this phase. Use the `credential-exfiltration-response` skill for systematic rotation — it handles the full detect/rotate/verify lifecycle.
 - For Kubernetes environments, the blast radius extends beyond the compromised node. Sophisticated payloads deploy privileged pods across all nodes using the service account token.
