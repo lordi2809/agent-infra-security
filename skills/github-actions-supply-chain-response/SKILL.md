@@ -178,9 +178,10 @@ gh workflow disable WORKFLOW_NAME -R ORG/REPO
 
 ### Phase 5: Credential rotation — "Assume all CI secrets are burned"
 
-This is the phase teams skip because it's painful. Be explicit and systematic. Any secret accessible to a workflow that ran the compromised action during the attack window must be rotated.
+**Hand off to the `credential-exfiltration-response` skill for systematic rotation.**
 
-**List all secrets accessible to affected workflows:**
+Before handing off, scope what secrets were accessible to the compromised workflow:
+
 ```bash
 # Repository-level secrets
 gh api "/repos/ORG/REPO/actions/secrets" --jq '.secrets[].name'
@@ -195,31 +196,19 @@ gh api "/repos/ORG/REPO/environments" --jq '.environments[].name' | while read e
 done
 ```
 
-**Credential classes to rotate:**
-
-- **GITHUB_TOKEN** — inherently scoped to the workflow run, but review its permissions. If `contents: write` or `packages: write` was granted, the attacker could have pushed code or packages.
-- **Personal Access Tokens (PATs)** — revoke and regenerate any PATs stored as secrets.
-- **Deploy keys** — regenerate SSH deploy keys for affected repos.
-- **Cloud credentials (AWS, GCP, Azure)** — rotate access keys, service account keys, client secrets used in CI.
-- **Docker registry credentials** — rotate tokens for Docker Hub, GHCR, ECR, GCR, ACR.
-- **Package registry tokens** — npm tokens, PyPI API tokens, RubyGems API keys, NuGet API keys.
-- **SSH keys** — any SSH keys stored as CI secrets for deployment.
-- **Database credentials** — any database connection strings or passwords in CI secrets.
-- **Webhook secrets** — Slack, PagerDuty, or other webhook URLs stored as secrets.
-
-**Post-rotation audit:**
-
-Check GitHub audit logs for suspicious activity during the attack window:
-```bash
-gh api "/orgs/ORG/audit-log" --method GET \
-  -F phrase="created:START..END" -F per_page=100
-```
-
-Check whether stolen GITHUB_TOKENs were used to create repos (dead drop pattern):
+**GITHUB_TOKEN note:** GITHUB_TOKEN is inherently scoped to the workflow run, but review its permissions. If `contents: write` or `packages: write` was granted, the attacker could have pushed code or packages. Check for dead drop repos:
 ```bash
 gh api "/orgs/ORG/repos?sort=created&direction=desc&per_page=20" \
   --jq '.[] | "\(.name) \(.created_at) \(.pushed_at)"'
 ```
+
+Tell the `credential-exfiltration-response` skill:
+- Which secret names were accessible (from the commands above)
+- The credential types they represent (PATs, cloud credentials, deploy keys, Docker registry tokens, package registry tokens, SSH keys, database credentials, webhook secrets)
+- The attack window
+- Whether any IOCs from Phase 3 suggest active credential use
+
+The credential skill will walk through detection of abuse via audit trails, rotation for each credential class, and verification that old credentials are truly invalidated (including provider-specific delays like AWS STS sessions surviving key deletion for up to 36 hours).
 
 ### Phase 6: Prevention — "Don't get burned again"
 
@@ -358,4 +347,4 @@ When producing the full incident response runbook or interactive checklist, incl
 - Self-hosted runners have additional persistence risks compared to GitHub-hosted runners. GitHub-hosted runners are ephemeral, but self-hosted runners retain filesystem state between jobs. The Trivy attack deployed systemd services, Python backdoors, and init scripts on self-hosted runners.
 - Workflow logs are retained for a limited time (90 days by default). If the attack happened close to the retention window, download and archive logs immediately before they expire.
 - The GITHUB_TOKEN scope matters. If the workflow had `contents: write`, the attacker could push code. If it had `packages: write`, the attacker could publish packages. Review the permissions block in each affected workflow.
-- Credential rotation is non-negotiable if a compromised action ran during the attack window. The attacker had access to every secret exposed to that workflow. Don't let the user skip this phase.
+- Credential rotation is non-negotiable if a compromised action ran during the attack window. The attacker had access to every secret exposed to that workflow. Don't let the user skip this phase. Use the `credential-exfiltration-response` skill for systematic rotation — it handles the full detect/rotate/verify lifecycle.
